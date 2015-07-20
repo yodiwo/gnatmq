@@ -37,7 +37,7 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
     /// <param name="clientId">Client ID</param>
     /// <param name="topic">Topic</param>
     /// <returns>True if authenticated, false otherwise.</returns>
-    public delegate bool MqttPubSubAuthenticationDelegate(string clientId, string topic);
+    public delegate bool MqttPubSubAuthenticationDelegate(bool isPublish, string clientId, string topic);
 
     /// <summary>
     /// Manager for User Access Control
@@ -89,12 +89,12 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
         /// <param name="clientId">Client ID</param>
         /// <param name="topic">Topic</param>
         /// <returns></returns>
-        public bool PubSubAuthentication(string clientId, string topic)
+        public bool PubSubAuthentication(bool isPublish, string clientId, string topic)
         {
             if (this.pubSubAuth == null)
                 return true;
             else
-                return this.pubSubAuth(clientId, topic);
+                return this.pubSubAuth(isPublish, clientId, topic);
         }
     }
 }

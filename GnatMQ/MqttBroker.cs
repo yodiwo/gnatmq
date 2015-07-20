@@ -231,7 +231,7 @@ namespace uPLibrary.Networking.M2Mqtt
             MqttMsgPublish publish = new MqttMsgPublish(e.Topic, e.Message, false, e.QosLevel, e.Retain);
 
             // Authenticate this client can communicate with this topic
-            if (this.uacManager.PubSubAuthentication(client.ClientId, e.Topic))
+            if (this.uacManager.PubSubAuthentication(true, client.ClientId, e.Topic))
             {
                 // publish message through publisher manager
                 this.publisherManager.Publish(publish);
@@ -269,7 +269,7 @@ namespace uPLibrary.Networking.M2Mqtt
             for (int i = 0; i < e.Topics.Length; i++)
             {
                 // Authenticate this client & topic.
-                var verified = this.uacManager.PubSubAuthentication(client.ClientId, e.Topics[i]);
+                var verified = this.uacManager.PubSubAuthentication(false, client.ClientId, e.Topics[i]);
                 topicAuth[e.Topics[i]] = verified;
                 if (verified)
                 {
