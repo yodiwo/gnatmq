@@ -70,6 +70,15 @@ namespace uPLibrary.Networking.M2Mqtt
         }
 
         /// <summary>
+        /// PubSub authentication method
+        /// </summary>
+        public MqttPubSubAuthenticationDelegate PubSubAuth
+        {
+            get { return this.uacManager.PubSubAuth; }
+            set { this.uacManager.PubSubAuth = value; }
+        }
+
+        /// <summary>
         /// Constructor (TCP/IP communication layer on port 1883 and default settings)
         /// </summary>
         public MqttBroker()
@@ -220,9 +229,13 @@ namespace uPLibrary.Networking.M2Mqtt
             // [v3.1.1] DUP flag from an incoming PUBLISH message is not propagated to subscribers
             //          It should be set in the outgoing PUBLISH message based on transmission for each subscriber
             MqttMsgPublish publish = new MqttMsgPublish(e.Topic, e.Message, false, e.QosLevel, e.Retain);
-            
-            // publish message through publisher manager
-            this.publisherManager.Publish(publish);
+
+            // Authenticate this client can communicate with this topic
+            if (this.uacManager.PubSubAuthentication(client.ClientId, e.Topic))
+            {
+                // publish message through publisher manager
+                this.publisherManager.Publish(publish);
+            }
         }
 
         void Client_MqttMsgUnsubscribeReceived(object sender, MqttMsgUnsubscribeEventArgs e)
@@ -250,27 +263,55 @@ namespace uPLibrary.Networking.M2Mqtt
         {
             MqttClient client = (MqttClient)sender;
 
+            // Since a client may subscribe to multiple topics, we must check each one
+            var topicAuth = new Dictionary<string, bool>();
+
             for (int i = 0; i < e.Topics.Length; i++)
             {
-                // TODO : business logic to grant QoS levels based on some conditions ?
-                //        now the broker granted the QoS levels requested by client
+                // Authenticate this client & topic.
+                var verified = this.uacManager.PubSubAuthentication(client.ClientId, e.Topics[i]);
+                topicAuth[e.Topics[i]] = verified;
+                if (verified)
+                {
+                    // TODO : business logic to grant QoS levels based on some conditions ?
+                    //        now the broker granted the QoS levels requested by client
 
-                // subscribe client for each topic and QoS level requested
-                this.subscriberManager.Subscribe(e.Topics[i], e.QoSLevels[i], client);
+                    // subscribe client for each topic and QoS level requested
+                    this.subscriberManager.Subscribe(e.Topics[i], e.QoSLevels[i], client);
+                }
             }
 
+            bool closeClient = false;
             try
             {
-                // send SUBACK message to the client
-                client.Suback(e.MessageId, e.QoSLevels);
-
-                for (int i = 0; i < e.Topics.Length; i++)
+                // If any have been allowed, send the suback
+                if (topicAuth.Any(x => x.Value))
                 {
-                    // publish retained message on the current subscription
-                    this.publisherManager.PublishRetaind(e.Topics[i], client.ClientId);
+                    // send SUBACK message to the client
+                    client.Suback(e.MessageId, e.QoSLevels);
+
+                    for (int i = 0; i < e.Topics.Length; i++)
+                    {
+                        // Send any retained message to the subscriber if verified
+                        var verified = topicAuth[e.Topics[i]];
+                        if (verified)
+                        {
+                            // publish retained message on the current subscription
+                            this.publisherManager.PublishRetaind(e.Topics[i], client.ClientId);
+                        }
+                    }
+                }
+                else
+                {
+                    closeClient = true;
                 }
             }
             catch (MqttCommunicationException)
+            {
+                closeClient = true;
+            }
+
+            if (closeClient)
             {
                 this.CloseClient(client);
             }

@@ -30,6 +30,15 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
     /// <returns></returns>
     public delegate bool MqttUserAuthenticationDelegate(string clientId, string username, string password);
 
+
+    /// <summary>
+    /// Delegate for executing topic communication authentication
+    /// </summary>
+    /// <param name="clientId">Client ID</param>
+    /// <param name="topic">Topic</param>
+    /// <returns>True if authenticated, false otherwise.</returns>
+    public delegate bool MqttPubSubAuthenticationDelegate(string clientId, string topic);
+
     /// <summary>
     /// Manager for User Access Control
     /// </summary>
@@ -47,6 +56,18 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
             set { this.userAuth = value; }
         }
 
+        // pubSub authentication delegate
+        private MqttPubSubAuthenticationDelegate pubSubAuth;
+
+        /// <summary>
+        /// PubSub authentication method
+        /// </summary>
+        public MqttPubSubAuthenticationDelegate PubSubAuth
+        {
+            get { return this.pubSubAuth; }
+            set { this.pubSubAuth = value; }
+        }
+
         /// <summary>
         /// Execute user authentication
         /// </summary>
@@ -60,6 +81,20 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
                 return true;
             else
                 return this.userAuth(clientId, username, password);
+        }
+
+        /// <summary>
+        /// Execute topic authentication
+        /// </summary>
+        /// <param name="clientId">Client ID</param>
+        /// <param name="topic">Topic</param>
+        /// <returns></returns>
+        public bool PubSubAuthentication(string clientId, string topic)
+        {
+            if (this.pubSubAuth == null)
+                return true;
+            else
+                return this.pubSubAuth(clientId, topic);
         }
     }
 }
