@@ -1,4 +1,4 @@
-﻿/*
+/*
 Copyright (c) 2013, 2014 Paolo Patierno
 
 All rights reserved. This program and the accompanying materials
@@ -171,7 +171,8 @@ namespace uPLibrary.Networking.M2Mqtt.Communication
             // create listener...
             this.listener = new TcpListener(IPAddress.IPv6Any, this.Port);
             // set socket option 27 (IPV6_V6ONLY) to false to accept also connection on IPV4 (not only IPV6 as default)
-            this.listener.Server.SetSocketOption(SocketOptionLevel.IPv6, (SocketOptionName)IPV6_V6ONLY, false);
+            if (System.Environment.OSVersion.Platform != PlatformID.Unix)   //Mono doesn't like this option at all
+                this.listener.Server.SetSocketOption(SocketOptionLevel.IPv6, (SocketOptionName)IPV6_V6ONLY, false);
             // ...and start it
             this.listener.Start();
 
