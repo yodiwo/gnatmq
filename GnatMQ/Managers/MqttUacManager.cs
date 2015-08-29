@@ -1,4 +1,4 @@
-﻿/*
+/*
 Copyright (c) 2013, 2014 Paolo Patierno
 
 All rights reserved. This program and the accompanying materials
@@ -24,10 +24,11 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
     /// <summary>
     /// Delegate for executing user authentication
     /// </summary>
+    /// <param name="clientId">clientId of client curently attempting connection</param>
     /// <param name="username">Username</param>
     /// <param name="password">Password</param>
     /// <returns></returns>
-    public delegate bool MqttUserAuthenticationDelegate(string username, string password);
+    public delegate bool MqttUserAuthenticationDelegate(string clientId, string username, string password);
 
     /// <summary>
     /// Manager for User Access Control
@@ -49,15 +50,16 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
         /// <summary>
         /// Execute user authentication
         /// </summary>
+        /// <param name="clientId">clientId of client curently attempting connection</param>
         /// <param name="username">Username</param>
         /// <param name="password">Password</param>
         /// <returns>Access granted or not</returns>
-        public bool UserAuthentication(string username, string password)
+        public bool UserAuthentication(string clientId, string username, string password)
         {
             if (this.userAuth == null)
                 return true;
             else
-                return this.userAuth(username, password);
+                return this.userAuth(clientId, username, password);
         }
     }
 }

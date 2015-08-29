@@ -1,4 +1,4 @@
-﻿/*
+/*
 Copyright (c) 2013, 2014 Paolo Patierno
 
 All rights reserved. This program and the accompanying materials
@@ -423,7 +423,7 @@ namespace uPLibrary.Networking.M2Mqtt
                     else
                     {
                         // check user authentication
-                        if (!this.uacManager.UserAuthentication(connect.Username, connect.Password))
+                        if (!this.uacManager.UserAuthentication(connect.ClientId, connect.Username, connect.Password))
                             returnCode = MqttMsgConnack.CONN_REFUSED_USERNAME_PASSWORD;
                         // server unavailable and not authorized ?
                         else
