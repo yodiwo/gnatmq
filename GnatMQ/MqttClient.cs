@@ -2479,7 +2479,8 @@ namespace uPLibrary.Networking.M2Mqtt
                 // possible exception on Send, I need to re-enqueue not sent message
                 if (msgContext != null)
                     // re-enqueue message
-                    this.inflightQueue.Enqueue(msgContext);
+                    lock (this.inflightQueue)
+                        this.inflightQueue.Enqueue(msgContext);
 
 #if TRACE
                 MqttUtility.Trace.WriteLine(TraceLevel.Error, "Exception occurred: {0}", e.ToString());
