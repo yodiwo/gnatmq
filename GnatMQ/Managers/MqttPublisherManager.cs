@@ -249,26 +249,37 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
 
                         MqttBrokerSession session = this.sessionManager.GetSession(clientId);
 
-                        while (session.OutgoingMessages.Count > 0)
+                        lock (session.OutgoingMessages)
                         {
-                            MqttMsgPublish outgoingMsg = session.OutgoingMessages.Dequeue();
-                            
-                            var query = from s in session.Subscriptions
-                                where (new Regex(s.Topic)).IsMatch(outgoingMsg.Topic)     // check for topics based also on wildcard with regex
-                                select s;
-
-                            MqttSubscription subscription = query.First();
-
-                            if (subscription != null)
+                            while (session.OutgoingMessages.Count > 0)
                             {
-                                qosLevel = (subscription.QosLevel < outgoingMsg.QosLevel) ? subscription.QosLevel : outgoingMsg.QosLevel;
+                                MqttMsgPublish outgoingMsg = session.OutgoingMessages.Dequeue();
+                                //no need to have outgoingMessage locked anymore
+                                Monitor.Exit(session.OutgoingMessages);
 
-                                session.Client.Publish(outgoingMsg.Topic, outgoingMsg.Message, qosLevel, outgoingMsg.Retain);
+                                MqttSubscription subscription = null;
+                                lock (session.Subscriptions)
+                                {
+                                    var query = from s in session.Subscriptions
+                                                where (new Regex(s.Topic)).IsMatch(outgoingMsg.Topic)     // check for topics based also on wildcard with regex
+                                                select s;
+
+                                    subscription = query.First();
+                                }
+
+                                if (subscription != null)
+                                {
+                                    qosLevel = (subscription.QosLevel < outgoingMsg.QosLevel) ? subscription.QosLevel : outgoingMsg.QosLevel;
+
+                                    session.Client.Publish(outgoingMsg.Topic, outgoingMsg.Message, qosLevel, outgoingMsg.Retain);
+                                }
+                                //relock outgoing messages to get next one
+                                Monitor.Enter(session.OutgoingMessages);
                             }
                         }
                     }
                 }
-                
+
                 // ... then pass to process publish queue
                 lock (this.publishQueue)
                 {
@@ -304,22 +315,28 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
                             {
                                 foreach (MqttBrokerSession session in sessions)
                                 {
-                                    var query = from s in session.Subscriptions
-                                                where (new Regex(s.Topic)).IsMatch(publish.Topic)
-                                                select s;
+									// consider only session active for client disconnected (not online)
+                                    if (session.Client != null)
+                                        continue;
 
-                                    MqttSubscriptionComparer comparer = new MqttSubscriptionComparer(MqttSubscriptionComparer.MqttSubscriptionComparerType.OnClientId);
-
-                                    // consider only session active for client disconnected (not online)
-                                    if (session.Client == null)
+                                    MqttSubscription[] _subscriptions;
+                                    lock (session.Subscriptions)
                                     {
-                                        foreach (MqttSubscription subscription in query.Distinct(comparer))
-                                        {
-                                            qosLevel = (subscription.QosLevel < publish.QosLevel) ? subscription.QosLevel : publish.QosLevel;
+                                        _subscriptions =
+                                            (from s in session.Subscriptions
+                                             where (new Regex(s.Topic)).IsMatch(publish.Topic)
+                                             select s)
+                                            .Distinct(new MqttSubscriptionComparer(MqttSubscriptionComparer.MqttSubscriptionComparerType.OnClientId))
+                                            .ToArray();
+                                    }
 
-                                            // save PUBLISH message for client disconnected (not online)
+                                    foreach (MqttSubscription subscription in _subscriptions)
+                                    {
+                                        qosLevel = (subscription.QosLevel < publish.QosLevel) ? subscription.QosLevel : publish.QosLevel;
+
+                                        // save PUBLISH message for client disconnected (not online)
+                                        lock (session.OutgoingMessages)
                                             session.OutgoingMessages.Enqueue(publish);
-                                        }
                                     }
                                 }
                             }

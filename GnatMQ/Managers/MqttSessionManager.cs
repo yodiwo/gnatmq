@@ -51,20 +51,23 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
         {
             MqttBrokerSession session = null;
 
-            // session doesn't exist
-            if (!this.sessions.ContainsKey(clientId))
+            lock (this.sessions)
             {
-                // create new session
-                session = new MqttBrokerSession();
-                session.ClientId = clientId;
+                // session doesn't exist
+                if (!this.sessions.ContainsKey(clientId))
+                {
+                    // create new session
+                    session = new MqttBrokerSession();
+                    session.ClientId = clientId;
 
-                // add to sessions list
-                this.sessions.Add(clientId, session);
-            }
-            else
-            {
-                // get existing session
-                session = this.sessions[clientId];
+                    // add to sessions list
+                    this.sessions.Add(clientId, session);
+                }
+                else
+                {
+                    // get existing session
+                    session = this.sessions[clientId];
+                }
             }
 
             // null reference to disconnected client
@@ -72,11 +75,14 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
 
             // update subscriptions
             session.Subscriptions = new List<MqttSubscription>();
-            foreach (MqttSubscription subscription in subscriptions)
+            lock (session.Subscriptions)
             {
-                session.Subscriptions.Add(new MqttSubscription(subscription.ClientId, subscription.Topic, subscription.QosLevel, null));
+                foreach (MqttSubscription subscription in subscriptions)
+                {
+                    session.Subscriptions.Add(new MqttSubscription(subscription.ClientId, subscription.Topic, subscription.QosLevel, null));
+                }
             }
-            
+
             // update inflight messages
             session.InflightMessages = new Hashtable();
             foreach (MqttMsgContext msgContext in clientSession.InflightMessages.Values)
@@ -92,10 +98,13 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
         /// <returns>Subscriptions for the client</returns>
         public MqttBrokerSession GetSession(string clientId)
         {
-            if (!this.sessions.ContainsKey(clientId))
-                return null;
-            else
-                return this.sessions[clientId];
+            lock (this.sessions)
+            {
+                if (!this.sessions.ContainsKey(clientId))
+                    return null;
+                else
+                    return this.sessions[clientId];
+            }
         }
 
         /// <summary>
@@ -104,8 +113,11 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
         /// <returns></returns>
         public List<MqttBrokerSession> GetSessions()
         {
-            // TODO : verificare altro modo
-            return new List<MqttBrokerSession>(this.sessions.Values);
+            lock (this.sessions)
+            {
+                // TODO : verificare altro modo
+                return new List<MqttBrokerSession>(this.sessions.Values);
+            }
         }
 
         /// <summary>
@@ -114,11 +126,14 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
         /// <param name="clientId">Client Id to clear session</param>
         public void ClearSession(string clientId)
         {
-            if (this.sessions.ContainsKey(clientId))
+            lock (this.sessions)
             {
-                // clear and remove client session
-                this.sessions[clientId].Clear();
-                this.sessions.Remove(clientId);
+                if (this.sessions.ContainsKey(clientId))
+                {
+                    // clear and remove client session
+                    this.sessions[clientId].Clear();
+                    this.sessions.Remove(clientId);
+                }
             }
         }
     }

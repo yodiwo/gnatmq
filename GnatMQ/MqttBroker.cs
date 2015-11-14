@@ -388,18 +388,21 @@ namespace uPLibrary.Networking.M2Mqtt
                             // there are saved subscriptions
                             if (session.Subscriptions != null)
                             {
-                                // register all subscriptions for the connected client
-                                foreach (MqttSubscription subscription in session.Subscriptions)
+                                lock (session.Subscriptions)
                                 {
-                                    this.subscriberManager.Subscribe(subscription.Topic, subscription.QosLevel, client);
+                                    // register all subscriptions for the connected client
+                                    foreach (MqttSubscription subscription in session.Subscriptions)
+                                    {
+                                        this.subscriberManager.Subscribe(subscription.Topic, subscription.QosLevel, client);
 
-                                    // publish retained message on the current subscription
-                                    this.publisherManager.PublishRetaind(subscription.Topic, clientId);
+                                        // publish retained message on the current subscription
+                                        this.publisherManager.PublishRetaind(subscription.Topic, clientId);
+                                    }
                                 }
                             }
 
                             // there are saved outgoing messages
-                            if (session.OutgoingMessages.Count > 0)
+                            if (session.OutgoingMessagesCount > 0)
                             {
                                 // publish outgoing messages for the session
                                 this.publisherManager.PublishSession(session.ClientId);
