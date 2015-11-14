@@ -560,40 +560,52 @@ namespace uPLibrary.Networking.M2Mqtt
             this.isConnectionClosing = false;
             // start thread for receiving messages from broker
             Fx.StartThread(this.ReceiveThread);
-            
-            MqttMsgConnack connack = (MqttMsgConnack)this.SendReceive(connect);
-            // if connection accepted, start keep alive timer and 
-            if (connack.ReturnCode == MqttMsgConnack.CONN_ACCEPTED)
+
+            try
             {
-                // set all client properties
-                this.ClientId = clientId;
-                this.CleanSession = cleanSession;
-                this.WillFlag = willFlag;
-                this.WillTopic = willTopic;
-                this.WillMessage = willMessage;
-                this.WillQosLevel = willQosLevel;
-
-                this.keepAlivePeriod = keepAlivePeriod * 1000; // convert in ms
-
-                // restore previous session
-                this.RestoreSession();
-
-                // keep alive period equals zero means turning off keep alive mechanism
-                if (this.keepAlivePeriod != 0)
+                MqttMsgConnack connack = (MqttMsgConnack)this.SendReceive(connect);
+                // if connection accepted, start keep alive timer and 
+                if (connack.ReturnCode == MqttMsgConnack.CONN_ACCEPTED)
                 {
-                    // start thread for sending keep alive message to the broker
-                    Fx.StartThread(this.KeepAliveThread);
+                    // set all client properties
+                    this.ClientId = clientId;
+                    this.CleanSession = cleanSession;
+                    this.WillFlag = willFlag;
+                    this.WillTopic = willTopic;
+                    this.WillMessage = willMessage;
+                    this.WillQosLevel = willQosLevel;
+
+                    this.keepAlivePeriod = keepAlivePeriod * 1000; // convert in ms
+
+                    // restore previous session
+                    this.RestoreSession();
+
+                    // keep alive period equals zero means turning off keep alive mechanism
+                    if (this.keepAlivePeriod != 0)
+                    {
+                        // start thread for sending keep alive message to the broker
+                        Fx.StartThread(this.KeepAliveThread);
+                    }
+
+                    // start thread for raising received message event from broker
+                    Fx.StartThread(this.DispatchEventThread);
+
+                    // start thread for handling inflight messages queue to broker asynchronously (publish and acknowledge)
+                    Fx.StartThread(this.ProcessInflightThread);
+
+                    this.IsConnected = true;
                 }
-
-                // start thread for raising received message event from broker
-                Fx.StartThread(this.DispatchEventThread);
-                
-                // start thread for handling inflight messages queue to broker asynchronously (publish and acknowledge)
-                Fx.StartThread(this.ProcessInflightThread);
-
-                this.IsConnected = true;
+                else
+                {
+                    this.Close();
+                }
+                return connack.ReturnCode;
             }
-            return connack.ReturnCode;
+            catch
+            {
+                this.Close();
+                return MqttMsgConnack.CONN_REFUSED_SERVER_UNAVAILABLE;
+            }
         }
 
         /// <summary>
