@@ -60,6 +60,9 @@ namespace uPLibrary.Networking.M2Mqtt
         // MQTT communication layer
         private IMqttCommunicationLayer commLayer;
 
+        // Readonly access to Broker's connected clients
+        public IReadOnlyCollection<MqttClient> AllClients { get { return clients as IReadOnlyCollection<MqttClient>; } }
+
         /// <summary>
         /// User authentication method
         /// </summary>
