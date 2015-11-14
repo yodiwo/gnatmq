@@ -833,12 +833,13 @@ namespace uPLibrary.Networking.M2Mqtt
             // enqueue message to publish into the inflight queue
             bool enqueue = this.EnqueueInflight(publish, MqttMsgFlow.ToPublish);
 
-            // message enqueued
             if (enqueue)
+                // message enqueued
                 return publish.MessageId;
-            // infligh queue full, message not enqueued
             else
-                throw new MqttClientException(MqttClientErrorCode.InflightQueueFull);
+                // inflight queue full, message not enqueued
+                //throw new MqttClientException(MqttClientErrorCode.InflightQueueFull);
+                return 0;
         }
 
         /// <summary>

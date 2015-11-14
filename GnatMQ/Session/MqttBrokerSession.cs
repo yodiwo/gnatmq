@@ -42,6 +42,8 @@ namespace uPLibrary.Networking.M2Mqtt.Session
         /// </summary>
         public Queue<MqttMsgPublish> OutgoingMessages;
 
+        public int OutgoingMessagesCount { get { lock (OutgoingMessages) return OutgoingMessages.Count; } }
+
         /// <summary>
         /// Constructor
         /// </summary>
