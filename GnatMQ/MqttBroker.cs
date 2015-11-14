@@ -1,4 +1,4 @@
-/*
+﻿/*
 Copyright (c) 2013, 2014 Paolo Patierno
 
 All rights reserved. This program and the accompanying materials
@@ -47,7 +47,7 @@ namespace uPLibrary.Networking.M2Mqtt
 
         // reference to publisher manager
         private MqttPublisherManager publisherManager;
-        
+
         // reference to subscriber manager
         private MqttSubscriberManager subscriberManager;
 
@@ -61,7 +61,10 @@ namespace uPLibrary.Networking.M2Mqtt
         private IMqttCommunicationLayer commLayer;
 
         // Readonly access to Broker's connected clients
-        public IReadOnlyCollection<MqttClient> AllClients { get { return clients as IReadOnlyCollection<MqttClient>; } }
+        //public IReadOnlyCollection<MqttClient> AllClients { get { return clients.ToArray() as IReadOnlyCollection<MqttClient>; } }
+
+        // ienumerable access to Broker's connected clients (proper locking implemented inside MqttClientCollection)
+        public IEnumerable<MqttClient> AllClients { get { return clients; } }
 
         /// <summary>
         /// User authentication method
@@ -129,7 +132,7 @@ namespace uPLibrary.Networking.M2Mqtt
 
             // MQTT communication layer
             this.commLayer = commLayer;
-            this.commLayer.ClientConnected += commLayer_ClientConnected;           
+            this.commLayer.ClientConnected += commLayer_ClientConnected;
 
             // create managers (publisher, subscriber, session and UAC)
             this.subscriberManager = new MqttSubscriberManager();
@@ -456,7 +459,7 @@ namespace uPLibrary.Networking.M2Mqtt
             else
             {
                 // client id length exceeded (only for old MQTT 3.1)
-                if  ((connect.ProtocolVersion == MqttMsgConnect.PROTOCOL_VERSION_V3_1) &&
+                if ((connect.ProtocolVersion == MqttMsgConnect.PROTOCOL_VERSION_V3_1) &&
                      (connect.ClientId.Length > MqttMsgConnect.CLIENT_ID_MAX_LENGTH))
                     returnCode = MqttMsgConnack.CONN_REFUSED_IDENT_REJECTED;
                 else
