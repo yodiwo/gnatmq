@@ -1228,18 +1228,26 @@ namespace uPLibrary.Networking.M2Mqtt
                                 ((msg.QosLevel == MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE) ||
                                  (msg.QosLevel == MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE)))
                             {
-                                if (this.session != null)
-                                    this.session.InflightMessages.Add(msgContext.Key, msgContext);
+                                if (this.session != null && this.session.InflightMessages != null)
+                                    lock (this.session.InflightMessages)
+                                    {
+                                        this.session.InflightMessages.Add(msgContext.Key, msgContext);
+                                    }
                             }
                             // to acknowledge and QoS level 2
                             else if ((msgContext.Flow == MqttMsgFlow.ToAcknowledge) &&
                                      (msg.QosLevel == MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE))
                             {
-                                if (this.session != null)
-                                    this.session.InflightMessages.Add(msgContext.Key, msgContext);
+                                if (this.session != null && this.session.InflightMessages != null)
+                                    lock (this.session.InflightMessages)
+                                    {
+                                        this.session.InflightMessages.Add(msgContext.Key, msgContext);
+                                    }
                             }
                         }
                     }
+                    else
+                        Console.WriteLine("Enqueing failed because inflightQueue is at " + this.inflightQueue.Count);
                 }
             }
 
@@ -2064,18 +2072,22 @@ namespace uPLibrary.Networking.M2Mqtt
                                                     // notify received acknowledge from broker of a published message or subscribe/unsubscribe message
                                                     this.OnInternalEvent(internalEvent);
 
-                                                    // PUBACK received for PUBLISH message with QoS Level 1, remove from session state
-                                                    if ((msgInflight.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE) &&
-                                                        (this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-                                                        (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                        (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+                                                    if (this.session != null)
                                                     {
-                                                        this.session.InflightMessages.Remove(msgContext.Key);
+                                                        lock (this.session.InflightMessages)
+                                                        {
+                                                            // PUBACK received for PUBLISH message with QoS Level 1, remove from session state
+                                                            if ((msgInflight.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE) &&
+#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
+                                                                (this.session.InflightMessages.Contains(msgContext.Key)))
+#else
+                                                                (this.session.InflightMessages.ContainsKey(msgContext.Key)))
+#endif
+                                                            {
+                                                                this.session.InflightMessages.Remove(msgContext.Key);
+                                                            }
+                                                        }
                                                     }
-
 #if TRACE
                                                     MqttUtility.Trace.WriteLine(TraceLevel.Queuing, "processed {0}", msgInflight);
 #endif
@@ -2107,17 +2119,22 @@ namespace uPLibrary.Networking.M2Mqtt
                                                         // if PUBACK for a PUBLISH message not received after retries, raise event for not published
                                                         if (msgInflight.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE)
                                                         {
-                                                            // PUBACK not received in time, PUBLISH retries failed, need to remove from session inflight messages too
-                                                            if ((this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-                                                                (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                                (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+                                                            if (this.session != null && this.session.InflightMessages != null)
                                                             {
-                                                                this.session.InflightMessages.Remove(msgContext.Key);
+                                                                lock (this.session.InflightMessages)
+                                                                {
+                                                                    // PUBACK not received in time, PUBLISH retries failed, need to remove from session inflight messages too
+                                                                    if (
+#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
+                                                                    (this.session.InflightMessages.Contains(msgContext.Key)))
+#else
+                                                                    (this.session.InflightMessages.ContainsKey(msgContext.Key)))
+#endif
+                                                                    {
+                                                                        this.session.InflightMessages.Remove(msgContext.Key);
+                                                                    }
+                                                                }
                                                             }
-
                                                             internalEvent = new MsgPublishedInternalEvent(msgInflight, false);
 
                                                             // notify not received acknowledge from broker and message not published
@@ -2207,14 +2224,20 @@ namespace uPLibrary.Networking.M2Mqtt
                                                     else
                                                     {
                                                         // PUBREC not received in time, PUBLISH retries failed, need to remove from session inflight messages too
-                                                        if ((this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-                                                            (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                            (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+                                                        if (this.session != null && this.session.InflightMessages != null)
                                                         {
-                                                            this.session.InflightMessages.Remove(msgContext.Key);
+                                                            lock (this.session.InflightMessages)
+                                                            {
+                                                                if (
+#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
+                                                                (this.session.InflightMessages.Contains(msgContext.Key)))
+#else
+                                                                (this.session.InflightMessages.ContainsKey(msgContext.Key)))
+#endif
+                                                                {
+                                                                    this.session.InflightMessages.Remove(msgContext.Key);
+                                                                }
+                                                            }
                                                         }
 
                                                         // if PUBREC for a PUBLISH message not received after retries, raise event for not published
@@ -2272,16 +2295,21 @@ namespace uPLibrary.Networking.M2Mqtt
                                                     // notify published message from broker and acknowledged
                                                     this.OnInternalEvent(internalEvent);
 
-                                                    // PUBREL received (and PUBCOMP sent) for PUBLISH message with QoS Level 2, remove from session state
-                                                    if ((msgInflight.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE) &&
-                                                        (this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-                                                        (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                        (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+                                                    if (this.session != null && this.session.InflightMessages != null)
                                                     {
-                                                        this.session.InflightMessages.Remove(msgContext.Key);
+                                                        lock (this.session.InflightMessages)
+                                                        {
+                                                            // PUBREL received (and PUBCOMP sent) for PUBLISH message with QoS Level 2, remove from session state
+                                                            if ((msgInflight.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE) &&
+#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
+                                                            (this.session.InflightMessages.Contains(msgContext.Key)))
+#else
+                                                            (this.session.InflightMessages.ContainsKey(msgContext.Key)))
+#endif
+                                                            {
+                                                                this.session.InflightMessages.Remove(msgContext.Key);
+                                                            }
+                                                        }
                                                     }
 
 #if TRACE
@@ -2335,16 +2363,21 @@ namespace uPLibrary.Networking.M2Mqtt
                                                     // notify received acknowledge from broker of a published message
                                                     this.OnInternalEvent(internalEvent);
 
-                                                    // PUBCOMP received for PUBLISH message with QoS Level 2, remove from session state
-                                                    if ((msgInflight.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE) &&
-                                                        (this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-                                                        (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                        (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+                                                    if (this.session != null && this.session.InflightMessages != null)
                                                     {
-                                                        this.session.InflightMessages.Remove(msgContext.Key);
+                                                        lock (this.session.InflightMessages)
+                                                        {
+                                                            // PUBCOMP received for PUBLISH message with QoS Level 2, remove from session state
+                                                            if ((msgInflight.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE) &&
+#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
+                                                            (this.session.InflightMessages.Contains(msgContext.Key)))
+#else
+                                                            (this.session.InflightMessages.ContainsKey(msgContext.Key)))
+#endif
+                                                            {
+                                                                this.session.InflightMessages.Remove(msgContext.Key);
+                                                            }
+                                                        }
                                                     }
 
 #if TRACE
@@ -2395,15 +2428,21 @@ namespace uPLibrary.Networking.M2Mqtt
                                                     }
                                                     else
                                                     {
-                                                        // PUBCOMP not received, PUBREL retries failed, need to remove from session inflight messages too
-                                                        if ((this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-                                                            (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                            (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+                                                        if (this.session != null && this.session.InflightMessages != null)
                                                         {
-                                                            this.session.InflightMessages.Remove(msgContext.Key);
+                                                            lock (this.session.InflightMessages)
+                                                            {
+                                                                // PUBCOMP not received, PUBREL retries failed, need to remove from session inflight messages too
+                                                                if (
+#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
+                                                                (this.session.InflightMessages.Contains(msgContext.Key)))
+#else
+                                                                (this.session.InflightMessages.ContainsKey(msgContext.Key)))
+#endif
+                                                                {
+                                                                    this.session.InflightMessages.Remove(msgContext.Key);
+                                                                }
+                                                            }
                                                         }
 
                                                         // if PUBCOMP for a PUBLISH message not received after retries, raise event for not published
@@ -2514,11 +2553,12 @@ namespace uPLibrary.Networking.M2Mqtt
                 // there is a previous session
                 if (this.session != null)
                 {
-                    lock (this.inflightQueue)
+                    lock (this.session.InflightMessages)
                     {
                         foreach (MqttMsgContext msgContext in this.session.InflightMessages.Values)
                         {
-                            this.inflightQueue.Enqueue(msgContext);
+                            lock (this.inflightQueue)
+                                this.inflightQueue.Enqueue(msgContext);
 
                             // if it is a PUBLISH message to publish
                             if ((msgContext.Message.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE) &&

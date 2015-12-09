@@ -22,6 +22,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using uPLibrary.Networking.M2Mqtt.Messages;
 using uPLibrary.Networking.M2Mqtt.Session;
+using uPLibrary.Networking.M2Mqtt.Utility;
 
 namespace uPLibrary.Networking.M2Mqtt.Managers
 {
@@ -85,9 +86,12 @@ namespace uPLibrary.Networking.M2Mqtt.Managers
 
             // update inflight messages
             session.InflightMessages = new Hashtable();
-            foreach (MqttMsgContext msgContext in clientSession.InflightMessages.Values)
+            lock (session.InflightMessages)
             {
-                session.InflightMessages.Add(msgContext.Key, msgContext);
+                foreach (MqttMsgContext msgContext in clientSession.InflightMessages.Values)
+                {
+                    session.InflightMessages.Add(msgContext.Key, msgContext);
+                }
             }
         }
 
