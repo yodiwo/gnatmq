@@ -1231,7 +1231,13 @@ namespace uPLibrary.Networking.M2Mqtt
                                 if (this.session != null && this.session.InflightMessages != null)
                                     lock (this.session.InflightMessages)
                                     {
-                                        this.session.InflightMessages.Add(msgContext.Key, msgContext);
+                                        if (this.session.InflightMessages.ContainsKey(msgContext.Key))
+                                        {
+                                            MqttUtility.Trace.WriteLine(TraceLevel.Queuing, "InFlight Queue already contains key " + msgContext.Key + ", dup flag: " + msgContext.Message.DupFlag);
+                                            Console.WriteLine("InFlight Queue already contains key " + msgContext.Key + ", dup flag: " + msgContext.Message.DupFlag);
+                                        }
+                                        else
+                                            this.session.InflightMessages.Add(msgContext.Key, msgContext);
                                     }
                             }
                             // to acknowledge and QoS level 2
@@ -1241,7 +1247,13 @@ namespace uPLibrary.Networking.M2Mqtt
                                 if (this.session != null && this.session.InflightMessages != null)
                                     lock (this.session.InflightMessages)
                                     {
-                                        this.session.InflightMessages.Add(msgContext.Key, msgContext);
+                                        if (this.session.InflightMessages.ContainsKey(msgContext.Key))
+                                        {
+                                            MqttUtility.Trace.WriteLine(TraceLevel.Queuing, "InFlight Queue already contains key " + msgContext.Key + ", dup flag: " + msgContext.Message.DupFlag);
+                                            Console.WriteLine(TraceLevel.Queuing, "InFlight Queue already contains key " + msgContext.Key + ", dup flag: " + msgContext.Message.DupFlag);
+                                        }
+                                        else
+                                            this.session.InflightMessages.Add(msgContext.Key, msgContext);
                                     }
                             }
                         }
