@@ -26,6 +26,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Security.Authentication;
 
 namespace uPLibrary.Networking.M2Mqtt.Communication
 {
@@ -63,7 +64,7 @@ namespace uPLibrary.Networking.M2Mqtt.Communication
         /// <summary>
         /// SSL/TLS protocol version
         /// </summary>
-        public MqttSslProtocols Protocol { get; private set; }
+        public SslProtocols Protocol { get; private set; }
 
 #if !(MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
         /// <summary>
@@ -92,9 +93,9 @@ namespace uPLibrary.Networking.M2Mqtt.Communication
         /// <param name="port">TCP listening port</param>
         public MqttTcpCommunicationLayer(int port)
 #if !(MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-            : this(port, false, null, MqttSslProtocols.None, null, null)
+            : this(port, false, null, SslProtocols.None, null, null)
 #else
-            : this(port, false, null, MqttSslProtocols.None)
+            : this(port, false, null, SslProtocols.None)
 #endif
         {
 
@@ -110,7 +111,7 @@ namespace uPLibrary.Networking.M2Mqtt.Communication
 #if !(MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
         /// <param name="userCertificateSelectionCallback">A RemoteCertificateValidationCallback delegate responsible for validating the certificate supplied by the remote party</param>
         /// <param name="userCertificateValidationCallback">A LocalCertificateSelectionCallback delegate responsible for selecting the certificate used for authentication</param>
-        public MqttTcpCommunicationLayer(int port, bool secure, X509Certificate serverCert, MqttSslProtocols protocol,
+        public MqttTcpCommunicationLayer(int port, bool secure, X509Certificate serverCert, SslProtocols protocol,
             RemoteCertificateValidationCallback userCertificateValidationCallback,
             LocalCertificateSelectionCallback userCertificateSelectionCallback)
 #else

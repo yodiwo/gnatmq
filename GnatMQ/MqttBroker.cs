@@ -23,6 +23,7 @@ using uPLibrary.Networking.M2Mqtt.Exceptions;
 using uPLibrary.Networking.M2Mqtt.Managers;
 using uPLibrary.Networking.M2Mqtt.Communication;
 using uPLibrary.Networking.M2Mqtt.Session;
+using System.Security.Authentication;
 #if SSL
 #if !(WINDOWS_APP || WINDOWS_PHONE_APP)
 using System.Security.Cryptography.X509Certificates;
@@ -98,7 +99,7 @@ namespace uPLibrary.Networking.M2Mqtt
         /// </summary>
         /// <param name="serverCert">X509 Server certificate</param>
         /// <param name="sslProtocol">SSL/TLS protocol versiokn</param>
-        public MqttBroker(X509Certificate serverCert, MqttSslProtocols sslProtocol)
+        public MqttBroker(X509Certificate serverCert, SslProtocols sslProtocol)
             : this(new MqttTcpCommunicationLayer(MqttSettings.MQTT_BROKER_DEFAULT_SSL_PORT, true, serverCert, sslProtocol, null, null), MqttSettings.Instance)
         {
         }
@@ -112,7 +113,7 @@ namespace uPLibrary.Networking.M2Mqtt
         /// <param name="sslProtocol">SSL/TLS protocol version</param>
         /// <param name="userCertificateSelectionCallback">A RemoteCertificateValidationCallback delegate responsible for validating the certificate supplied by the remote party</param>
         /// <param name="userCertificateValidationCallback">A LocalCertificateSelectionCallback delegate responsible for selecting the certificate used for authentication</param>
-        public MqttBroker(X509Certificate serverCert, MqttSslProtocols sslProtocol,
+        public MqttBroker(X509Certificate serverCert, SslProtocols sslProtocol,
             RemoteCertificateValidationCallback userCertificateValidationCallback,
             LocalCertificateSelectionCallback userCertificateSelectionCallback)
             : this(new MqttTcpCommunicationLayer(MqttSettings.MQTT_BROKER_DEFAULT_SSL_PORT, true, serverCert, sslProtocol, userCertificateValidationCallback, userCertificateSelectionCallback), MqttSettings.Instance)
