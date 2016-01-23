@@ -738,13 +738,15 @@ namespace uPLibrary.Networking.M2Mqtt
                 this.WillMessage = connect.WillMessage;
                 this.WillQosLevel = connect.WillQosLevel;
 
-                this.keepAlivePeriod = connect.KeepAlivePeriod * 1000; // convert in ms
-                // broker has a tolerance of 1.5 specified keep alive period
-                this.keepAlivePeriod += (this.keepAlivePeriod / 2);
+                if (connect.KeepAlivePeriod != 0)
+                {
+                    this.keepAlivePeriod = connect.KeepAlivePeriod * 1000; // convert in ms
+                                                                           // broker has a tolerance of 1.5 specified keep alive period
+                    this.keepAlivePeriod += (this.keepAlivePeriod / 2);
 
-                // start thread for checking keep alive period timeout
-                Fx.StartThread(this.KeepAliveThread);
-
+                    // start thread for checking keep alive period timeout
+                    Fx.StartThread(this.KeepAliveThread);
+                }
                 this.isConnectionClosing = false;
                 this.IsConnected = true;
             }
