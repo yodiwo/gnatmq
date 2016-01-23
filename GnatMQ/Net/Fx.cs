@@ -25,12 +25,12 @@ namespace uPLibrary.Networking.M2Mqtt
     {
         public static void StartThread(ThreadStart threadStart)
         {
-            new Thread(threadStart).Start();
+            new System.Threading.Tasks.Task(() => threadStart()).Start();
         }
 
         public static void SleepThread(int millisecondsTimeout)
         {
-            Thread.Sleep(millisecondsTimeout);
+            System.Threading.Tasks.Task.Delay(millisecondsTimeout).Wait();
         }
     }
 }
