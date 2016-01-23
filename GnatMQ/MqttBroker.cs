@@ -24,6 +24,7 @@ using uPLibrary.Networking.M2Mqtt.Managers;
 using uPLibrary.Networking.M2Mqtt.Communication;
 using uPLibrary.Networking.M2Mqtt.Session;
 using System.Security.Authentication;
+using System.Threading;
 #if SSL
 #if !(WINDOWS_APP || WINDOWS_PHONE_APP)
 using System.Security.Cryptography.X509Certificates;
@@ -40,6 +41,8 @@ namespace uPLibrary.Networking.M2Mqtt
     /// </summary>
     public class MqttBroker
     {
+        private bool running = false;
+
         // MQTT broker settings
         private MqttSettings settings;
 
@@ -57,6 +60,9 @@ namespace uPLibrary.Networking.M2Mqtt
 
         // reference to User Access Control manager
         private MqttUacManager uacManager;
+
+        // thread to check and enforce KeepAlive period for connected clients
+        private Thread KeepAliveEnforcerThread;
 
         // MQTT communication layer
         private IMqttCommunicationLayer commLayer;
@@ -151,6 +157,11 @@ namespace uPLibrary.Networking.M2Mqtt
         {
             this.commLayer.Start();
             this.publisherManager.Start();
+            running = true;
+            //start enforcing keep alive for all clients on single thread
+            KeepAliveEnforcerThread = new Thread(KeepAliveEnforcer);
+            KeepAliveEnforcerThread.IsBackground = true;
+            KeepAliveEnforcerThread.Start();
         }
 
         /// <summary>
@@ -158,6 +169,7 @@ namespace uPLibrary.Networking.M2Mqtt
         /// </summary>
         public void Stop()
         {
+            running = false;
             this.commLayer.Stop();
             this.publisherManager.Stop();
 
@@ -165,6 +177,27 @@ namespace uPLibrary.Networking.M2Mqtt
             foreach (MqttClient client in this.clients)
             {
                 client.Close();
+            }
+        }
+
+        private void KeepAliveEnforcer()
+        {
+            while (running)
+            {
+                try
+                {
+                    if (clients.Count != 0)
+                        System.Threading.Tasks.Parallel.ForEach(clients.ToArray(), c =>
+                        {
+                            try
+                            {
+                                c.KeepAliveCheck();
+                            }
+                            catch { }
+                        });
+                }
+                catch { }
+                Thread.Sleep(5000);
             }
         }
 

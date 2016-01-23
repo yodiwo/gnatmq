@@ -580,13 +580,14 @@ namespace uPLibrary.Networking.M2Mqtt
                     // restore previous session
                     this.RestoreSession();
 
+#if !BROKER
                     // keep alive period equals zero means turning off keep alive mechanism
                     if (this.keepAlivePeriod != 0)
                     {
                         // start thread for sending keep alive message to the broker
                         Fx.StartThread(this.KeepAliveThread);
                     }
-
+#endif
                     // start thread for raising received message event from broker
                     Fx.StartThread(this.DispatchEventThread);
 
@@ -745,7 +746,8 @@ namespace uPLibrary.Networking.M2Mqtt
                     this.keepAlivePeriod += (this.keepAlivePeriod / 2);
 
                     // start thread for checking keep alive period timeout
-                    Fx.StartThread(this.KeepAliveThread);
+                    //do not start thread, single broker thread tracks keep-alive
+                    //Fx.StartThread(this.KeepAliveThread);
                 }
                 this.isConnectionClosing = false;
                 this.IsConnected = true;
@@ -855,6 +857,26 @@ namespace uPLibrary.Networking.M2Mqtt
                 //throw new MqttClientException(MqttClientErrorCode.InflightQueueFull);
                 return 0;
         }
+
+#if BROKER
+        /// <summary>
+        /// Manual keep alive check
+        /// </summary>
+        public void KeepAliveCheck()
+        {
+            if (this.keepAlivePeriod != 0 && this.isRunning)
+            {
+                var delta = Environment.TickCount - this.lastCommTime;
+
+                // if timeout exceeded ...
+                if (delta >= this.keepAlivePeriod)
+                {
+                    // client must close connection
+                    this.OnConnectionClosing();
+                }
+            }
+        }
+#endif
 
         /// <summary>
         /// Wrapper method for raising events
