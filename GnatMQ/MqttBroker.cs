@@ -34,6 +34,8 @@ using Microsoft.SPOT.Net.Security;
 #endif
 #endif
 
+using Yodiwo;
+
 namespace uPLibrary.Networking.M2Mqtt
 {
     /// <summary>
@@ -47,7 +49,8 @@ namespace uPLibrary.Networking.M2Mqtt
         private MqttSettings settings;
 
         // clients connected list
-        private MqttClientCollection clients;
+        public HashSetTS<MqttClient> PreClients;
+        public DictionaryTS<string, MqttClient> Clients;
 
         // reference to publisher manager
         private MqttPublisherManager publisherManager;
@@ -69,9 +72,6 @@ namespace uPLibrary.Networking.M2Mqtt
 
         // Readonly access to Broker's connected clients
         //public IReadOnlyCollection<MqttClient> AllClients { get { return clients.ToArray() as IReadOnlyCollection<MqttClient>; } }
-
-        // ienumerable access to Broker's connected clients (proper locking implemented inside MqttClientCollection)
-        public IEnumerable<MqttClient> AllClients { get { return clients; } }
 
         /// <summary>
         /// User authentication method
@@ -147,7 +147,8 @@ namespace uPLibrary.Networking.M2Mqtt
             this.publisherManager = new MqttPublisherManager(this.subscriberManager, this.sessionManager);
             this.uacManager = new MqttUacManager();
 
-            this.clients = new MqttClientCollection();
+            this.PreClients = new HashSetTS<MqttClient>();
+            this.Clients = new DictionaryTS<string, MqttClient>();
         }
 
         /// <summary>
@@ -173,11 +174,17 @@ namespace uPLibrary.Networking.M2Mqtt
             this.commLayer.Stop();
             this.publisherManager.Stop();
 
-            // close connection with all clients
-            foreach (MqttClient client in this.clients)
-            {
+            // close connection with all clients, in transit ones..
+            foreach (var client in this.PreClients)
                 client.Close();
-            }
+            PreClients.Clear();
+            PreClients = null;
+
+            //and "real" ones
+            foreach (var client in this.Clients.Values)
+                client.Close();
+            Clients.Clear();
+            Clients = null;
         }
 
         private void KeepAliveEnforcer()
@@ -186,8 +193,8 @@ namespace uPLibrary.Networking.M2Mqtt
             {
                 try
                 {
-                    if (clients.Count != 0)
-                        System.Threading.Tasks.Parallel.ForEach(clients.ToArray(), c =>
+                    if (Clients.Count != 0)
+                        System.Threading.Tasks.Parallel.ForEach(Clients.Values, c =>
                         {
                             try
                             {
@@ -207,7 +214,15 @@ namespace uPLibrary.Networking.M2Mqtt
         /// <param name="client">Client to close</param>
         private void CloseClient(MqttClient client)
         {
-            if (this.clients.Contains(client))
+            if (PreClients.Contains(client))
+            {
+                // close the client
+                client.Close();
+
+                // remove client from the collection
+                this.PreClients.Remove(client);
+            }
+            else if (this.Clients.ContainsKey(client.ClientId))
             {
                 // if client is connected and it has a will message
                 if (!client.IsConnected && client.WillFlag)
@@ -240,7 +255,7 @@ namespace uPLibrary.Networking.M2Mqtt
                 client.Close();
 
                 // remove client from the collection
-                this.clients.Remove(client);
+                this.Clients.Remove(client.ClientId);
             }
         }
 
@@ -254,8 +269,8 @@ namespace uPLibrary.Networking.M2Mqtt
             e.Client.MqttMsgUnsubscribeReceived += Client_MqttMsgUnsubscribeReceived;
             e.Client.ConnectionClosed += Client_ConnectionClosed;
 
-            // add client to the collection
-            this.clients.Add(e.Client);
+            // add client to in-transit list
+            this.PreClients.Add(e.Client);
 
             // start client threads
             e.Client.Open();
@@ -384,6 +399,10 @@ namespace uPLibrary.Networking.M2Mqtt
                     this.CloseClient(clientConnected);
                 }
             }
+
+            // move client from transient to real collection
+            this.PreClients.Remove(client);
+            this.Clients.Add(clientId, client);
 
             try
             {
@@ -528,11 +547,7 @@ namespace uPLibrary.Networking.M2Mqtt
         /// <returns>Reference to client</returns>
         private MqttClient GetClient(string clientId)
         {
-            var query = from c in this.clients
-                        where c.ClientId == clientId
-                        select c;
-
-            return query.FirstOrDefault();
+            return this.Clients.TryGetOrDefault(clientId);
         }
     }
 }

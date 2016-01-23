@@ -94,6 +94,12 @@
     <Compile Include="Utility\QueueExtension.cs" />
     <Compile Include="Utility\Trace.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\sw\YodiwoSharp\YodiwoSharp\YodiwoSharp.csproj">
+      <Project>{8ae66abd-d963-4e83-83a3-330156cd37a3}</Project>
+      <Name>YodiwoSharp</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
